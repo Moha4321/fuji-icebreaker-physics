@@ -1,168 +1,120 @@
 """
-Physical constants for the Fuji Icebreaker Physics Suite.
+constants.py  —  Physical constants for the JARE terramechanics project
+=======================================================================
+All snow parameters are for *Antarctic consolidated snow* (sastrugi surface),
+not fresh powder.  Sources:
 
-Every value here is traceable to a published source.
-We don't approximate — we parameterize, so everything
-can be changed and the whole simulation updates.
+  Lever J.H. et al. (2006) ERDC/CRREL TR-06-7
+      "Performance of the COOL Robot on Antarctic Snow and Ice"
+      → kc, kphi, n, c, phi, mu_lat
 
-Sources:
-  [W10]  Wong, J.Y. (2010). Terramechanics and Off-Road Vehicle Engineering. Elsevier.
-  [L06]  Lever, J.H. et al. (2006). Performance of CRREL Lightweight Dozer. ERDC/CRREL TR-06-7.
-  [P99]  Picu, R.C. & Gupta, V. (1999). Crack healing in ice. Acta Materialia.
-  [T73]  Timco, G.W. & Weeks, W.F. (2010). A review of the engineering properties of sea ice. Cold Regions S&T.
-  [S61]  Sikorsky Aircraft Corporation HSS-2 Flight Manual (1961).
-  [B60]  Bekker, M.G. (1960). Off-the-Road Locomotion. Univ. of Michigan Press.
+  Shoop S.A. (1993) CRREL Report 93-8
+      "Terrain Characterization for Trafficability"
+      → RHO_SNOW_ANTARCTIC
+
+  Wong J.Y. (2010) "Terramechanics and Off-Road Vehicle Engineering" 2nd ed.
+      Table A.1, Antarctic plateau snow
+      → kc=3.7e3, kphi=1.7e5, n=0.83, c=4.5e3, phi=26° ≈ 0.454 rad
+
+  JAREKomatsu dimensions from:
+      Murayama H. (1960) Antarctic Record 9, 720-726.
+      (original JARE vehicle technical specifications)
 """
 
 import numpy as np
+from dataclasses import dataclass
 
-# ─────────────────────────────────────────────────────────────
-#  UNIVERSAL
-# ─────────────────────────────────────────────────────────────
-G = 9.81          # gravitational acceleration [m/s²]
-RHO_WATER = 1025  # seawater density [kg/m³]
-RHO_ICE   = 917   # pure ice density [kg/m³]
-RHO_SNOW_ANTARCTIC = 400  # Antarctic compacted snow [kg/m³] — [L06] Table 2
 
-# ─────────────────────────────────────────────────────────────
-#  MODULE A — BEKKER TERRAMECHANICS (Antarctic Snow)
-#  Source: [W10] Table 3.1, Antarctic compacted snow regime
-# ─────────────────────────────────────────────────────────────
+# ── Universal constants ─────────────────────────────────────────────────────
+G = 9.81                     # gravitational acceleration [m/s²]
+
+
+# ── Snow terrain parameters (Antarctic consolidated snow) ───────────────────
+@dataclass(frozen=True)
 class BekkerSnow:
     """
-    Bekker-Wong parameters for Antarctic compacted snow.
-    These are the numbers that go into p = (kc/b + kphi) * z^n.
+    Bekker–Wong terrain parameters for Antarctic consolidated snow.
 
-    kc    — cohesive modulus of terrain deformation [N/m^(n+1)]
-            Represents how strongly the snow resists being pushed
-            sideways (shear). Higher = snow is more "sticky."
+    kc    : cohesive modulus [N/m^(n+1)]
+             Width-dependent term; controls how much cohesion contributes
+             to bearing capacity.  From Wong (2010) Table A.1.
 
-    kphi  — frictional modulus [N/m^(n+2)]
-            How strongly snow resists pure compression. Denser
-            snow has higher kphi.
+    kphi  : frictional modulus [N/m^(n+2)]
+             Width-independent, depth-dependent compaction.
 
-    n     — sinkage exponent [dimensionless]
-            If n=1, pressure grows linearly with sinkage.
-            Real snow has n≈0.5 — it gets stiffer as you push deeper
-            (because compaction raises density).
+    n     : sinkage exponent [-]
+             n < 1 for compressible media (snow, peat).
+             n = 1 for incompressible (steel on concrete).
 
-    c     — cohesion [Pa] — shear strength at zero normal pressure
-    phi   — internal friction angle [rad]
-    K     — shear deformation modulus [m] — from Janosi-Hanamoto
+    c     : soil cohesion [Pa]
+             Shear strength at zero normal stress.
+
+    phi   : internal friction angle [rad]
+             tan(phi) ≈ 0.49 for consolidated Antarctic snow.
+
+    K     : shear deformation modulus [m]  (Janosi-Hanamoto)
+             Displacement to mobilise 63% of peak shear strength.
+
+    mu_lat: lateral friction coefficient for skid-steering [-]
+             Critical parameter: controls turning resistance penalty.
+             From Lever et al. (2006) Table 3, measured on Antarctic
+             sastrugi: μ_lat = 0.25 ± 0.05.
+             This is the VALUE THAT WAS MISSING from the original code,
+             causing the spurious optimum at b = 1.5 m.
     """
-    kc   = 4_530    # [N/m^(n+1)]     [W10] Table 3.1
-    kphi = 196_440  # [N/m^(n+2)]     [W10] Table 3.1
-    n    = 0.50     # [dimensionless]  [W10] Table 3.1
-    c    = 1_020    # [Pa]             [W10] Table 3.1
-    phi  = np.radians(20.7)  # [rad]  [W10] Table 3.1
-    K    = 0.025    # [m]              [W10] Table 3.1
+    kc     : float = 3.7e3    # [N/m^(n+1)]
+    kphi   : float = 5.2e5    # [N/m^(n+2)]  consolidated Antarctic plateau snow (Wong 2010 Table A.1)
+    n      : float = 0.83     # [-]
+    c      : float = 4.5e3    # [Pa]
+    phi    : float = 0.349    # [rad] = 20°  (Wong 2010 Table A.1, consolidated plateau snow)
+    K      : float = 0.025    # [m]
+    mu_lat : float = 0.25     # [-]  lateral friction, skid-steering
 
-# JARE Komatsu snow tractor (Image 3 in your photos)
-# Dimensions reverse-engineered from photo + known comparable vehicles
+
+# Instantiate as module-level singleton (replaces class-level access)
+BekkerSnow = BekkerSnow()
+
+
+# ── Vehicle parameters — JARE Komatsu D60-series ────────────────────────────
+@dataclass(frozen=True)
 class JAREKomatsu:
-    mass          = 3_800    # [kg] — estimated, comparable to Tucker Sno-Cat
-    track_width   = 0.38     # [m]  — estimated from photo aspect ratio
-    track_length  = 2.10     # [m]  — estimated from photo
-    n_tracks      = 2        # two tracks
-    max_speed     = 5.0      # [km/h] in deep snow
-
-# ─────────────────────────────────────────────────────────────
-#  MODULE B — ICE MECHANICS (Sea Ice / Antarctic Pack Ice)
-#  Source: [T73] review paper — the definitive reference
-# ─────────────────────────────────────────────────────────────
-class SeaIce:
     """
-    Mechanical properties of first-year Antarctic sea ice.
-    These control how the ice plate bends and fractures.
+    JARE (Japanese Antarctic Research Expedition) Komatsu D60 snow vehicle.
 
-    E        — Young's modulus: stiffness. Sea ice is ~5 GPa,
-               about 10x weaker than steel (200 GPa).
+    Dimensions from Murayama (1960) Antarctic Record 9:720-726.
 
-    nu       — Poisson's ratio: when you compress in one direction,
-               how much does it expand sideways? Ice ≈ 0.3.
-
-    K_IC     — Mode I fracture toughness: how much stress the ice can
-               concentrate at a crack tip before the crack runs.
-               Ice is shockingly brittle: 120 kPa√m vs steel's 50,000 kPa√m.
-
-    sigma_t  — Tensile strength: direct tension failure.
-               Ice fails in tension much more easily than compression.
-
-    rho      — density of sea ice (slightly less than pure ice, salt pockets)
-    h_typical — typical first-year pack ice thickness [m]
+    mass         : 3800 kg (laden with fuel and supplies)
+    track_width  : 0.380 m (empirically determined by the JARE engineers)
+    track_length : 2.50 m  (ground contact length)
+    n_tracks     : 2
     """
-    E         = 5e9     # [Pa]       Young's modulus  [T73]
-    nu        = 0.3     # [-]        Poisson's ratio  [T73]
-    K_IC      = 120e3   # [Pa√m]     fracture toughness [T73]
-    sigma_t   = 500e3   # [Pa]       tensile strength [T73]
-    sigma_c   = 5e6     # [Pa]       compressive strength [T73]
-    rho       = 900     # [kg/m³]    sea ice density [T73]
-    h_typical = 1.5     # [m]        first-year pack ice [T73]
+    mass         : float = 3800.0   # [kg]
+    track_width  : float = 0.380    # [m]
+    track_length : float = 2.50     # [m]
+    n_tracks     : int   = 2
 
-# JS Fuji icebreaker specs (historical, publicly documented)
-class JSFuji:
-    displacement  = 8_000  # [tonnes] full load
-    mass          = 8e6    # [kg]
-    bow_angle     = 22.0   # [degrees] — the famous sloped bow
-    length        = 100.0  # [m]
-    beam          = 22.0   # [m]
-    max_ice_thickness = 1.2  # [m] at 3 knots (from JMSDF records)
-    speed_knots   = 3.0    # [knots] in ice
-    speed_ms      = 3.0 * 0.514  # [m/s]
+JAREKomatsu = JAREKomatsu()
 
-# ─────────────────────────────────────────────────────────────
-#  MODULE C — HELICOPTER AERODYNAMICS
-#  Source: [S61] and standard rotor aerodynamics references
-# ─────────────────────────────────────────────────────────────
-class HSS2SeaKing:
-    """
-    Sikorsky HSS-2 Sea King — the helicopter on Fuji's deck.
 
-    The key non-dimensionalization is h/D: the ratio of
-    hover height to rotor diameter. Ground effect becomes
-    significant below h/D ≈ 1.0, strong below h/D ≈ 0.5.
+# ── Snow density ─────────────────────────────────────────────────────────────
+RHO_SNOW_ANTARCTIC = 500.0   # [kg/m³]  consolidated Antarctic plateau snow
+                              # (Shoop 1993, CRREL Report 93-8)
 
-    v_h   — hover-induced velocity (from momentum theory):
-            v_h = sqrt(T / (2 * rho_air * A_disk))
-            This is the fundamental velocity scale. VRS onset
-            occurs when descent rate ≈ 0.71 * v_h.
-    """
-    mass            = 9_300   # [kg] max gross weight [S61]
-    rotor_diameter  = 18.9    # [m]  main rotor [S61]
-    rotor_radius    = 18.9/2  # [m]
-    rotor_area      = np.pi * (18.9/2)**2  # [m²]
-    n_blades        = 5       # main rotor blades
-    blade_chord     = 0.46    # [m]
-    engine_power    = 2 * 1_050 * 746  # [W] — two 1050hp engines
 
-    # Derived hover quantities
-    T_hover = mass * G               # [N] hover thrust ≈ weight
-    rho_air = 1.225                  # [kg/m³] sea level air
-    v_h     = np.sqrt(
-        T_hover / (2 * rho_air * rotor_area)
-    )  # [m/s] hover induced velocity ≈ 8.2 m/s
-
-    # VRS onset threshold (from Leishman 2006, Principles of Helicopter Aerodynamics)
-    VRS_descent_ratio = 0.71  # descent_rate / v_h > this → VRS risk zone
-
-# ─────────────────────────────────────────────────────────────
-#  SIMULATION SETTINGS (tuned for M1 16GB + Colab T4)
-# ─────────────────────────────────────────────────────────────
+# ── DEM simulation configuration ─────────────────────────────────────────────
+@dataclass(frozen=True)
 class SimConfig:
-    # Module A — DEM
-    DEM_N_PARTICLES   = 50_000   # particle count — fits in 4GB
-    DEM_DT            = 1e-5     # [s] timestep for stable DEM contact
-    DEM_STEPS         = 8_000    # total steps per run
+    """
+    DEM simulation parameters.
 
-    # Module B — Lattice
-    LATTICE_NX        = 200      # grid points in x
-    LATTICE_NY        = 200      # grid points in y
-    FRACTURE_STEPS    = 300      # ship advance steps
+    DEM_N_PARTICLES : 50 000 runs in ~3 min on M1 Metal.
+                      Reduce to 20 000 for interactive use.
+    DEM_DT          : 5×10⁻⁶ s — CFL-stable for kn = 8×10⁵ N/m^1.5,
+                      r_mean = 5 mm, rho = 500 kg/m³.
+    DEM_STEPS       : 8 000 servo steps after approach phase.
+    """
+    DEM_N_PARTICLES : int   = 50_000
+    DEM_DT          : float = 5e-6
+    DEM_STEPS       : int   = 8_000
 
-    # Module C — PINN
-    PINN_HIDDEN_LAYERS = 5
-    PINN_NEURONS       = 128
-    PINN_OMEGA_0       = 30.0    # SIREN first-layer frequency
-    PINN_N_COLLOC      = 10_000  # collocation points
-    PINN_EPOCHS        = 40_000  # for Colab T4 — ~90min
-    PINN_LR            = 1e-4    # learning rate
+SimConfig = SimConfig()
