@@ -1,0 +1,22 @@
+# Mac OS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# Project Specific (Don't upload massive datasets or video files to Git)
+results/**/*.csv
+results/**/*.mp4
+assets/gifs/*.mp4
