@@ -1,0 +1,10 @@
+name: fuji_physics
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - jax
+  - equinox
+  - taichi
+  - matplotlib
+  - ipykernel

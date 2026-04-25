@@ -1,0 +1,8 @@
+jax[tpu]
+equinox
+taichi
+gudhi
+networkx
+matplotlib
+opencv-python
+scikit-learn
